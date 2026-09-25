@@ -22,8 +22,18 @@ export interface WignerAxes {
   centerIdx: Int32Array;
 }
 
-export function makeAxes(limit: number, gridSize: number, h = 0.05): WignerAxes {
-  const half = Math.round(limit / h);
+/**
+ * `pad` extends the internal position lattice beyond `limit` on both sides.
+ * Without it, the y-integration in `wignerGrid` (which must keep x +/- y/2
+ * on the lattice) runs out of room exactly at the plotted edge, collapsing
+ * the p-resolution there to ~0 and washing out the comb into a flat, non-
+ * oscillating streak instead of resolved peaks. Padding by `limit` keeps the
+ * same y-range (hence the same p-resolution) available at the plotted edges
+ * as at the center.
+ */
+export function makeAxes(limit: number, gridSize: number, h = 0.05, pad = limit): WignerAxes {
+  const extent = limit + Math.max(0, pad);
+  const half = Math.round(extent / h);
   const fineCount = 2 * half + 1;
   const fine = new Float64Array(fineCount);
   for (let i = 0; i < fineCount; i++) fine[i] = (i - half) * h;
@@ -32,7 +42,8 @@ export function makeAxes(limit: number, gridSize: number, h = 0.05): WignerAxes 
   const centerIdx = new Int32Array(gridSize);
   for (let i = 0; i < gridSize; i++) {
     const frac = gridSize === 1 ? 0.5 : i / (gridSize - 1);
-    const idx = Math.round(frac * (fineCount - 1));
+    const x = -limit + frac * (2 * limit);
+    const idx = Math.min(fineCount - 1, Math.max(0, Math.round(x / h) + half));
     centerIdx[i] = idx;
     coords[i] = fine[idx];
   }
